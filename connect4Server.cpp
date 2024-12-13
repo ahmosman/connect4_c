@@ -38,12 +38,19 @@ typedef struct
 
 typedef struct
 {
-    bool your_turn;
+    int current_player;
     char message[BUFFER_SIZE];
     int move;
     bool game_over;
     char board[ROWS][COLUMNS];
 } game_message_t;
+
+typedef struct 
+{
+    int player_number;
+    game_message_t game_msg;
+} game_init_t;
+
 
 typedef struct
 {
@@ -139,7 +146,7 @@ void handle_client_message(int client_index)
         if (check_win(game->board, game->current_player))
         {
             game->game_over = true;
-            strncpy(game_msg.message, "You win!", BUFFER_SIZE);
+            sprintf(game_msg.message, "Player %d wins!", game->current_player);
             game_msg.game_over = true;
         }
         else
@@ -155,9 +162,10 @@ void handle_client_message(int client_index)
         game_msg.game_over = false;
     }
 
-    game_msg.your_turn = true;
+    game_msg.current_player = game->current_player;
     memcpy(game_msg.board, game->board, sizeof(game->board));
 
+    write(clients[client_index].fd, &game_msg, sizeof(game_msg));
     write(clients[client_index].pair_fd, &game_msg, sizeof(game_msg));
 
     clients[client_index].turn = false;
@@ -303,15 +311,19 @@ int main()
 
                 // Send a message to the client who starts the game
                 game_message_t game_msg;
-                game_msg.your_turn = true;
                 printf("Before strncpy.\n");
                 strncpy(game_msg.message, "You start the game.", BUFFER_SIZE);
                 printf("Before memcpy.\n");
                 int game_index = game_map[game_number];
                 memcpy(game_msg.board, games[game_index].board, sizeof(games[game_index].board));
-                printf("Before write.\n");
-                game_msg.game_over = false;
-                printf("Game started.\n");
+                game_msg.game_over = games[game_index].game_over;
+                game_msg.current_player = games[game_index].current_player;
+
+                int player_number_1 = 1;
+                int player_number_2 = 2;
+
+                write(clients[pair_index].fd, &player_number_1, sizeof(player_number_1));
+                write(clients[client_index].fd, &player_number_2, sizeof(player_number_2));
                 write(clients[pair_index].fd, &game_msg, sizeof(game_msg));
             }
         }

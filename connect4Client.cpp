@@ -25,12 +25,18 @@
 
 typedef struct
 {
-    bool your_turn;
+    int current_player;
     char message[BUFFER_SIZE];
     int move;
     bool game_over;
     char board[ROWS][COLUMNS];
 } game_message_t;
+
+typedef struct
+{
+    int player_number;
+    game_message_t game_msg;
+} game_init_t;
 
 char getch()
 {
@@ -53,27 +59,46 @@ char getch()
     return buf;
 }
 
-void show_board(char board[ROWS][COLUMNS])
+bool your_turn(game_message_t game_msg, int player_number)
+{
+    return game_msg.current_player == player_number;
+}
+
+void show_board(game_message_t game_msg, int current_col, int player_number)
 {
     for (int i = 0; i < ROWS; i++)
     {
         printf("|  ");
         for (int j = 0; j < COLUMNS; j++)
         {
-            switch (board[i][j])
+            if (i == 0 && j == current_col && your_turn(game_msg, player_number))
             {
-            case ' ':
-                printf("   |  ");
-                break;
-            case '*':
-                printf("\x1B[31mO\033[0m  |  ");
-                break;
-            case '@':
-                printf("\x1B[33mO\033[0m  |  ");
-                break;
-            default:
-                printf("%c  |  ", board[i][j]);
-                break;
+                if (game_msg.current_player == 1)
+                {
+                    printf("\x1B[31mX\033[0m  |  "); // Red X for player 1
+                }
+                else
+                {
+                    printf("\x1B[33mX\033[0m  |  "); // Yellow X for player 2
+                }
+            }
+            else
+            {
+                switch (game_msg.board[i][j])
+                {
+                case ' ':
+                    printf("   |  ");
+                    break;
+                case '*':
+                    printf("\x1B[31mO\033[0m  |  ");
+                    break;
+                case '@':
+                    printf("\x1B[33mO\033[0m  |  ");
+                    break;
+                default:
+                    printf("%c  |  ", game_msg.board[i][j]);
+                    break;
+                }
             }
         }
         printf("\n\n");
@@ -114,31 +139,30 @@ int main(int argc, char *argv[])
 
     write(sockfd, &game_number, sizeof(game_number));
 
-    int coordinates[2] = {0, 0};
-    char move = 0, prechar = ' ';
-    int player = 1;
+    int current_col = 0;
+    char move = 0;
+    int player_number;
+
+    read(sockfd, &player_number, sizeof(player_number));
 
     while (1)
     {
         game_message_t game_msg;
-        int n = read(sockfd, &game_msg, sizeof(game_msg));
-        if (n <= 0)
+        if (read(sockfd, &game_msg, sizeof(game_msg)) <= 0)
         {
             handle_error("read");
         }
 
         system("clear");
         printf("Received: %s\n", game_msg.message);
-        show_board(game_msg.board);
+        printf("Current player: %d\n", game_msg.current_player);
+        printf("Player number: %d\n", player_number);
 
-        if (game_msg.game_over)
+        while (your_turn(game_msg, player_number) && !game_msg.game_over)
         {
-            printf("Game over.\n");
-            break;
-        }
-
-        if (game_msg.your_turn)
-        {
+            system("clear");
+            show_board(game_msg, current_col, player_number);
+            printf("It's your turn.\n");
             printf("X marks your position\nUse A/D to move, S to place a piece\nA - left\nD - right\nS - place\n");
 
             move = getch();
@@ -148,23 +172,35 @@ int main(int argc, char *argv[])
                 close(sockfd);
                 return 0;
             case 'a':
-                if (coordinates[1] > 0)
+                if (current_col > 0)
                 {
-                    coordinates[1]--;
+                    current_col--;
                 }
                 break;
             case 'd':
-                if (coordinates[1] < COLUMNS - 1)
+                if (current_col < COLUMNS - 1)
                 {
-                    coordinates[1]++;
+                    current_col++;
                 }
                 break;
             case 's':
-                game_msg.move = coordinates[1];
-                game_msg.your_turn = false;
+                game_msg.move = current_col;
                 write(sockfd, &game_msg, sizeof(game_msg));
+                memset(&game_msg, 0, sizeof(game_msg));
+                if (read(sockfd, &game_msg, sizeof(game_msg)) <= 0)
+                {
+                    handle_error("read after move");
+                }
                 break;
             }
+        }
+        system("clear");
+        show_board(game_msg, current_col, player_number);
+
+        if (game_msg.game_over)
+        {
+            printf("%s\n", game_msg.message);
+            break;
         }
         else
         {
