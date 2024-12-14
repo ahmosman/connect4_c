@@ -36,7 +36,8 @@ typedef struct
 {
     int player_number;
     game_message_t game_msg;
-} game_init_t;
+    int current_col;
+} game_state_t;
 
 char getch()
 {
@@ -59,21 +60,21 @@ char getch()
     return buf;
 }
 
-bool your_turn(game_message_t game_msg, int player_number)
+bool your_turn(game_state_t *state)
 {
-    return game_msg.current_player == player_number;
+    return state->game_msg.current_player == state->player_number;
 }
 
-void show_board(game_message_t game_msg, int current_col, int player_number)
+void show_board(game_state_t *state)
 {
     for (int i = 0; i < ROWS; i++)
     {
         printf("|  ");
         for (int j = 0; j < COLUMNS; j++)
         {
-            if (i == 0 && j == current_col && your_turn(game_msg, player_number))
+            if (i == 0 && j == state->current_col && your_turn(state))
             {
-                if (game_msg.current_player == 1)
+                if (state->game_msg.current_player == 1)
                 {
                     printf("\x1B[31mX\033[0m  |  "); // Red X for player 1
                 }
@@ -84,7 +85,7 @@ void show_board(game_message_t game_msg, int current_col, int player_number)
             }
             else
             {
-                switch (game_msg.board[i][j])
+                switch (state->game_msg.board[i][j])
                 {
                 case ' ':
                     printf("   |  ");
@@ -96,7 +97,7 @@ void show_board(game_message_t game_msg, int current_col, int player_number)
                     printf("\x1B[33mO\033[0m  |  ");
                     break;
                 default:
-                    printf("%c  |  ", game_msg.board[i][j]);
+                    printf("%c  |  ", state->game_msg.board[i][j]);
                     break;
                 }
             }
@@ -139,55 +140,53 @@ int main(int argc, char *argv[])
 
     write(sockfd, &game_number, sizeof(game_number));
 
-    int current_col = 0;
-    char move = 0;
-    int player_number;
+    game_state_t state;
+    state.current_col = 0;
 
-    read(sockfd, &player_number, sizeof(player_number));
+    read(sockfd, &state.player_number, sizeof(state.player_number));
 
     while (1)
     {
-        game_message_t game_msg;
-        if (read(sockfd, &game_msg, sizeof(game_msg)) <= 0)
+        if (read(sockfd, &state.game_msg, sizeof(state.game_msg)) <= 0)
         {
             handle_error("read");
         }
 
         system("clear");
-        printf("Received: %s\n", game_msg.message);
-        printf("Current player: %d\n", game_msg.current_player);
-        printf("Player number: %d\n", player_number);
+        printf("Received: %s\n", state.game_msg.message);
+        printf("Current player: %d\n", state.game_msg.current_player);
+        printf("Player number: %d\n", state.player_number);
 
-        while (your_turn(game_msg, player_number) && !game_msg.game_over)
+        while (your_turn(&state) && !state.game_msg.game_over)
         {
             system("clear");
-            show_board(game_msg, current_col, player_number);
+            show_board(&state);
             printf("It's your turn.\n");
             printf("X marks your position\nUse A/D to move, S to place a piece\nA - left\nD - right\nS - place\n");
 
-            move = getch();
+            char move = getch();
             switch (move)
             {
             case 'q':
                 close(sockfd);
                 return 0;
             case 'a':
-                if (current_col > 0)
+                if (state.current_col > 0)
                 {
-                    current_col--;
+                    state.current_col--;
                 }
                 break;
             case 'd':
-                if (current_col < COLUMNS - 1)
+                if (state.current_col < COLUMNS - 1)
                 {
-                    current_col++;
+                    state.current_col++;
                 }
                 break;
             case 's':
-                game_msg.move = current_col;
-                write(sockfd, &game_msg, sizeof(game_msg));
-                memset(&game_msg, 0, sizeof(game_msg));
-                if (read(sockfd, &game_msg, sizeof(game_msg)) <= 0)
+                state.game_msg.move = state.current_col;
+                write(sockfd, &state.game_msg, sizeof(state.game_msg));
+                memset(&state.game_msg, 0, sizeof(state.game_msg));
+                if (read(sockfd, &state.game_msg, sizeof(state.game_msg)) <= 0)
                 {
                     handle_error("read after move");
                 }
@@ -195,11 +194,11 @@ int main(int argc, char *argv[])
             }
         }
         system("clear");
-        show_board(game_msg, current_col, player_number);
+        show_board(&state);
 
-        if (game_msg.game_over)
+        if (state.game_msg.game_over)
         {
-            printf("%s\n", game_msg.message);
+            printf("%s\n", state.game_msg.message);
             break;
         }
         else

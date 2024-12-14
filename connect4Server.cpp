@@ -45,13 +45,6 @@ typedef struct
     char board[ROWS][COLUMNS];
 } game_message_t;
 
-typedef struct 
-{
-    int player_number;
-    game_message_t game_msg;
-} game_init_t;
-
-
 typedef struct
 {
     char board[ROWS][COLUMNS];
@@ -120,6 +113,15 @@ void handle_client_message(int client_index)
     int n = read(clients[client_index].fd, &game_msg, sizeof(game_msg));
     if (n <= 0)
     {
+        // Client disconnected
+        int pair_fd = clients[client_index].pair_fd;
+        if (pair_fd != -1)
+        {
+            strncpy(game_msg.message, "Another player disconnected", BUFFER_SIZE);
+            game_msg.game_over = true;
+            write(pair_fd, &game_msg, sizeof(game_msg));
+        }
+
         close(clients[client_index].fd);
         clients[client_index].active = false;
         clients[client_index].pair_fd = -1;
@@ -222,11 +224,6 @@ int main()
         clients[i].game_number = -1;
     }
 
-    for (int i = 0; i < MAX_CLIENTS / 2; i++)
-    {
-        initialize_game(&games[i]);
-    }
-
     poll_fds[0].fd = server_fd;
     poll_fds[0].events = POLLIN;
 
@@ -294,7 +291,6 @@ int main()
                 clients[pair_index].pair_fd = clients[client_index].fd;
                 clients[pair_index].turn = true; // First pair starts
                 clients[client_index].turn = false;
-                printf("After pair found.\n");
 
                 // Mapowanie numeru gry na indeks w tablicy `games`
                 if (game_map.find(game_number) == game_map.end())
@@ -311,10 +307,10 @@ int main()
 
                 // Send a message to the client who starts the game
                 game_message_t game_msg;
-                printf("Before strncpy.\n");
                 strncpy(game_msg.message, "You start the game.", BUFFER_SIZE);
-                printf("Before memcpy.\n");
                 int game_index = game_map[game_number];
+
+                initialize_game(&games[game_index]);
                 memcpy(game_msg.board, games[game_index].board, sizeof(games[game_index].board));
                 game_msg.game_over = games[game_index].game_over;
                 game_msg.current_player = games[game_index].current_player;
@@ -325,6 +321,7 @@ int main()
                 write(clients[pair_index].fd, &player_number_1, sizeof(player_number_1));
                 write(clients[client_index].fd, &player_number_2, sizeof(player_number_2));
                 write(clients[pair_index].fd, &game_msg, sizeof(game_msg));
+                write(clients[client_index].fd, &game_msg, sizeof(game_msg));
             }
         }
 
