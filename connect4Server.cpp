@@ -13,6 +13,7 @@
 #include <poll.h>
 #include <iostream>
 #include <unordered_map>
+#include <typeinfo>
 
 #define PORT 12345
 #define MAX_CLIENTS 10
@@ -54,7 +55,7 @@ typedef struct
 
 client_t clients[MAX_CLIENTS];
 game_state_t games[MAX_CLIENTS / 2];
-std::unordered_map<int, int> game_map; // Mapowanie numerów gier na indeksy w tablicy `games`
+std::unordered_map<int, int> game_map; // Mapping game numbers to indices in the games array
 
 void initialize_game(game_state_t *game)
 {
@@ -135,7 +136,9 @@ void handle_client_message(int client_index)
         return;
     }
 
+
     int game_index = game_map[game_number];
+
     game_state_t *game = &games[game_index];
 
     if (game->game_over)
@@ -149,6 +152,7 @@ void handle_client_message(int client_index)
         {
             game->game_over = true;
             sprintf(game_msg.message, "Player %d wins!", game->current_player);
+            game->current_player = 0;
             game_msg.game_over = true;
         }
         else
@@ -292,13 +296,13 @@ int main()
                 clients[pair_index].turn = true; // First pair starts
                 clients[client_index].turn = false;
 
-                // Mapowanie numeru gry na indeks w tablicy `games`
                 if (game_map.find(game_number) == game_map.end())
                 {
                     for (int i = 0; i < MAX_CLIENTS / 2; i++)
                     {
-                        if (game_map.find(i) == game_map.end())
+                        if (games[i].current_player == 0) // Find empty game slot
                         {
+                            printf("Game slot found: %d\n", i);
                             game_map[game_number] = i;
                             break;
                         }
