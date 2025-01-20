@@ -1,6 +1,6 @@
 # Connect4 Game
 
-This project implements a simple Connect4 game using TCP sockets and poll in C. The game consists of a server and multiple clients. Clients can connect to the server, join a game, and take turns to play.
+This project implements a simple Connect4 game using TCP sockets and poll in C++. The game consists of a server and multiple clients. Clients can connect to the server, join a game, and take turns to play.
 
 ## Compilation and Execution
 
@@ -9,8 +9,8 @@ This project implements a simple Connect4 game using TCP sockets and poll in C. 
 To compile and run the server:
 
 ```sh
-gcc -Wall connect4Server.c -o ./connect4/outputs/connect4Server.o
-./connect4/outputs/connect4Server.o
+g++ -Wall -std=c++11 ./connect4Server.cpp -o ./outputs/connect4Server.o
+./outputs/connect4Server.o
 ```
 
 ### Client
@@ -18,16 +18,16 @@ gcc -Wall connect4Server.c -o ./connect4/outputs/connect4Server.o
 To compile and run the client:
 
 ```sh
-gcc -Wall connect4Client.c -o ./connect4/outputs/connect4Client.o
-./connect4/outputs/connect4Client.o
+g++ -Wall -std=c++11 ./connect4Client.cpp -o ./outputs/connect4Client.o
+./outputs/connect4Client.o <server_ip> <game_number>
 ```
 
-Replace <server_ip> with the IP address of the server and <game_number> with the game number you want to join.
+Replace `<server_ip>` with the IP address of the server and `<game_number>` with the game number you want to join.
 
 ## Dependencies
 
 - GCC (GNU Compiler Collection)
-- Standard C libraries
+- Standard C++ libraries
 
 ## License
 

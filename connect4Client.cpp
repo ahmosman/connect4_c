@@ -1,4 +1,4 @@
-// compile: g++ -Wall -std=c++11 ./connect4Client.cpp -o ../outputs/connect4Client.o && ../outputs/connect4Client.o 127.0.0.1 1101
+// compile: g++ -Wall -std=c++11 ./connect4Client.cpp -o ./outputs/connect4Client.o && ./outputs/connect4Client.o 127.0.0.1 1101
 
 #include <sys/types.h>
 #include <sys/socket.h>
